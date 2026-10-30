@@ -1,0 +1,13 @@
+# C++ formatting for avl. Google style, which the code was written in, with
+# a wider line: the SIMD kernels and static_casts read better unwrapped.
+# Run scripts/format.sh; CI runs scripts/format.sh --check.
+BasedOnStyle: Google
+ColumnLimit: 110
+# Keep the blank-line groups (system, third-party, ours); sort within each.
+IncludeBlocks: Preserve
+# Always `T* p` / `T& r`, never inferred from whatever the file already does.
+DerivePointerAlignment: false
+PointerAlignment: Left
+# Windows editors write CRLF; source files are LF, ending in a newline.
+LineEnding: LF
+InsertNewlineAtEOF: true
