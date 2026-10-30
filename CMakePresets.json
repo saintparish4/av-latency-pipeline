@@ -1,0 +1,35 @@
+{
+    "version": 6,
+    "configurePresets": [
+      {
+        "name": "base",
+        "hidden": true,
+        "generator": "Ninja",
+        "binaryDir": "${sourceDir}/build/${presetName}",
+        "cacheVariables": {
+          "CMAKE_C_COMPILER": "clang-18",
+          "CMAKE_CXX_COMPILER": "clang++-18",
+          "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld -Wl,--emit-relocs",
+          "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        }
+      },
+      { "name": "rel", "inherits": "base", "displayName": "Measured build: -O2 -g, frame pointers, relocs kept for BOLT" },
+      { "name": "debug", "inherits": "base", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
+      { "name": "asan", "inherits": "base", "cacheVariables": { "AVL_SANITIZE": "address,undefined", "CMAKE_BUILD_TYPE": "Debug" } },
+      { "name": "tsan", "inherits": "base", "cacheVariables": { "AVL_SANITIZE": "thread", "CMAKE_BUILD_TYPE": "RelWithDebInfo" } },
+      { "name": "fuzz", "inherits": "base", "cacheVariables": { "AVL_FUZZ": "ON", "AVL_TESTS": "OFF", "AVL_SANITIZE": "address,undefined", "CMAKE_BUILD_TYPE": "RelWithDebInfo" } }
+    ],
+    "buildPresets": [
+      { "name": "rel", "configurePreset": "rel" },
+      { "name": "debug", "configurePreset": "debug" },
+      { "name": "asan", "configurePreset": "asan" },
+      { "name": "tsan", "configurePreset": "tsan" },
+      { "name": "fuzz", "configurePreset": "fuzz" }
+    ],
+    "testPresets": [
+      { "name": "rel", "configurePreset": "rel", "output": { "outputOnFailure": true } },
+      { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+      { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true } },
+      { "name": "tsan", "configurePreset": "tsan", "output": { "outputOnFailure": true } }
+    ]
+  }
