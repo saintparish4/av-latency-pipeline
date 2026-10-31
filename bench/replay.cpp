@@ -162,6 +162,7 @@ int main(int argc, char** argv) try {
   std::int64_t seen = 0, brakes = 0, behind = 0;
   const Clock::time_point t0 = Clock::now() + std::chrono::milliseconds(10);
   for (std::int64_t loop = 0; seen < warmup + decisions; ++loop) {
+    const std::int64_t seen_at_loop_start = seen;
     for (std::size_t i = 0; i < pkts.size() && seen < warmup + decisions; ++i) {
       Clock::time_point intended;
       if (speed > 0) {
@@ -190,6 +191,12 @@ int main(int argc, char** argv) try {
         hdr_record_value(hist, lat);
         brakes += decision->brake ? 1 : 0;
       }
+    }
+    // Every loop replays identical packets, so a pass with no decision means
+    // no pass ever will: the capture lacks the sector's trigger column.
+    if (seen == seen_at_loop_start) {
+      throw std::runtime_error("no decision in a full pass of the capture (" + std::to_string(pkts.size()) +
+                               " lidar packets): does it contain the forward sector?");
     }
   }
 
