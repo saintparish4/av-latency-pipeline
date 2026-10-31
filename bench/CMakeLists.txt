@@ -1,0 +1,6 @@
+add_executable(replay replay.cpp $<TARGET_OBJECTS:avl_core>)
+target_link_libraries(replay PRIVATE avl_core hdr_histogram_static avl_warnings)
+if(AVL_COZ)
+  target_compile_definitions(replay PRIVATE AVL_COZ=1)
+  target_link_libraries(replay PRIVATE dl)
+endif()
