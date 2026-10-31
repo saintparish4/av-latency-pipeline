@@ -12,6 +12,11 @@ than a hidden bias that favours whichever arm got lucky:
   * link order: an arm's binary may be a glob over several builds made with
     different AVL_LINK_SEED values; one is picked per run.
 
+The environment is replaced, not inherited, on purpose: the pad must be the
+only thing about it that varies, and replay reads nothing else from it. If a
+run does need a variable (LD_LIBRARY_PATH for a custom toolchain, ASAN_OPTIONS),
+name it with --pass-env, which is repeatable and stops on an unset name.
+
 Arm syntax:  NAME|BINARY_GLOB|EXTRA_ARGS   (EXTRA_ARGS optional)
 Everything after "--" is passed to every run.
 
@@ -40,7 +45,15 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--max-pad", type=int, default=4096)
+    ap.add_argument("--pass-env", action="append", default=[], metavar="NAME",
+                    help="environment variable to pass through to every run")
     a = ap.parse_args(argv)
+
+    unset = [name for name in a.pass_env if name not in os.environ]
+    if unset:
+        sys.exit(f"--pass-env: not set: {', '.join(unset)}")
+    base_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                **{name: os.environ[name] for name in a.pass_env}}
 
     rng = random.Random(a.seed)
     arms = []
@@ -58,8 +71,7 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     for n, ((name, binaries, extra), i) in enumerate(schedule, 1):
         binary = rng.choice(binaries)
-        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-               "AVL_PAD": "x" * rng.randrange(a.max_pad)}
+        env = {**base_env, "AVL_PAD": "x" * rng.randrange(a.max_pad)}
         cmd = [binary, *common, *extra, "--label", name, "--seed", str(rng.randrange(1 << 31)),
                "--csv", a.out]
         print(f"[{n}/{len(schedule)}] {name} run {i} ({os.path.relpath(binary)})", flush=True)
