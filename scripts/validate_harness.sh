@@ -34,10 +34,14 @@ read -ra rt_args <<< "$RT" # RT is a flag list on purpose: split it into words
 common=(--pcap "$CAP.pcap" --meta "$CAP.json" --speed "$SPEED" --decisions "$DECISIONS" "${rt_args[@]}")
 bench() { python3 analysis/bench.py --runs "$RUNS" "$@"; }
 status=0
+# Two A/A steps x 3 quantiles = 6 chances of a false alarm. At 0.05 each, a
+# perfect harness would fail about one validation in four, so the 5% budget is
+# split across the family (Bonferroni): 0.05 / 6.
+AA_ALPHA=0.0083
 
 echo "== 1. A/A, spin 50 us"
 bench --out "$OUT/aa_spin.csv" --arm "A|$REPLAY" --arm "B|$REPLAY" -- "${common[@]}" --impl spin
-python3 analysis/compare.py "$OUT/aa_spin.csv" --base A --cand B \
+python3 analysis/compare.py "$OUT/aa_spin.csv" --base A --cand B --alpha "$AA_ALPHA" \
   --expect p50_ns=same --expect p99_ns=same --expect p999_ns=same || status=1
 
 # Step 2 needs the naive pipeline (directive/p2.md); before it exists, skip.
@@ -47,7 +51,7 @@ pipelines=$("$first" --help 2>&1 || true)
 if grep -Eq '^pipelines:.* naive( |$)' <<< "$pipelines"; then
   echo "== 2. A/A, naive"
   bench --out "$OUT/aa_naive.csv" --arm "A|$REPLAY" --arm "B|$REPLAY" -- "${common[@]}" --impl naive
-  python3 analysis/compare.py "$OUT/aa_naive.csv" --base A --cand B \
+  python3 analysis/compare.py "$OUT/aa_naive.csv" --base A --cand B --alpha "$AA_ALPHA" \
     --expect p50_ns=same --expect p99_ns=same --expect p999_ns=same || status=1
 else
   echo "== 2. skipped: no naive pipeline yet"
