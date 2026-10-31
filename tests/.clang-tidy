@@ -1,0 +1,5 @@
+# Tests only. GoogleTest's ASSERT_* macros return early through a path that
+# bugprone-unchecked-optional-access cannot follow, so every
+# `ASSERT_TRUE(x.has_value())` followed by a use of x is a false positive.
+InheritParentConfig: true
+Checks: -bugprone-unchecked-optional-access
