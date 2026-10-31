@@ -14,6 +14,15 @@ if [ "${1:-}" = "--check" ]; then
   clang-format-18 --dry-run --Werror "${files[@]}"
   echo "format: ${#files[@]} files clean"
 else
-  clang-format-18 -i "${files[@]}"
-  echo "format: formatted ${#files[@]} files"
+  changed=()
+  for f in "${files[@]}"; do
+    clang-format-18 --dry-run --Werror "$f" 2> /dev/null || changed+=("$f")
+  done
+  if [ "${#changed[@]}" -eq 0 ]; then
+    echo "format: all ${#files[@]} files already formatted"
+  else
+    clang-format-18 -i "${changed[@]}"
+    printf '  reformatted %s\n' "${changed[@]}"
+    echo "format: reformatted ${#changed[@]} of ${#files[@]} files"
+  fi
 fi
