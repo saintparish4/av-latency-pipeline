@@ -19,6 +19,14 @@ SPEED=${SPEED:-50}
 RT=${RT:-}
 CAP=data/OS-2-128-U1_v2.3.0_1024x10
 OUT=results/validate
+
+# Checked before anything is deleted: a mistyped REPLAY must not wipe the last run.
+first=$(compgen -G "$REPLAY" | head -1 || true)
+if [ -z "$first" ]; then
+  echo "validate_harness: no binary matches '$REPLAY'; run: cmake --build --preset rel" >&2
+  exit 1
+fi
+
 mkdir -p "$OUT"
 rm -f "$OUT"/*.csv
 
@@ -33,8 +41,10 @@ python3 analysis/compare.py "$OUT/aa_spin.csv" --base A --cand B \
   --expect p50_ns=same --expect p99_ns=same --expect p999_ns=same || status=1
 
 # Step 2 needs the naive pipeline (directive/p2.md); before it exists, skip.
-first=$(compgen -G "$REPLAY" | head -1)
-if "$first" --help 2>&1 | grep -qw naive; then
+# Captured first: `replay --help` exits 2, which pipefail would report as "no
+# naive". Match the pipelines line only, because the usage text says "naive" too.
+pipelines=$("$first" --help 2>&1 || true)
+if grep -Eq '^pipelines:.* naive( |$)' <<< "$pipelines"; then
   echo "== 2. A/A, naive"
   bench --out "$OUT/aa_naive.csv" --arm "A|$REPLAY" --arm "B|$REPLAY" -- "${common[@]}" --impl naive
   python3 analysis/compare.py "$OUT/aa_naive.csv" --base A --cand B \
