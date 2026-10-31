@@ -1,0 +1,19 @@
+# Static analysis for avl, run by scripts/lint.sh and shown live by clangd.
+# Three families, all bug- or speed-relevant; style is clang-format's job.
+#   bugprone-*     real defects: empty if-bodies, unchecked optionals, ...
+#   performance-*  avoidable copies and allocations
+#   modernize-*    C++20 idioms (starts_with, range-for, [[nodiscard]])
+# Disabled, each with a reason:
+#   bugprone-easily-swappable-parameters  flags every (x, y, z) signature
+#   modernize-use-trailing-return-type    a style preference, not a fix
+#   modernize-avoid-c-arrays              fixed 3x3 matrices read best as arrays
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays
+WarningsAsErrors: '*'
+HeaderFilterRegex: '/(src|bench|tools|tests|fuzz)/'

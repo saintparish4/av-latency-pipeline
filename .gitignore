@@ -5,3 +5,4 @@ out/
 data/
 .venv/
 __pycache__/|nNOT_TO_BE_COMMITTED.md
+.vscode/
