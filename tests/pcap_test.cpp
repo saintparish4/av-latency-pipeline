@@ -40,6 +40,7 @@ TEST(Pcap, ParsesByteSwappedCapture) {
   };
   for (const std::size_t off : {0u, 16u, 20u}) swap_word(off);  // magic, snaplen, link type
   for (std::size_t off = 24; off < bytes.size();) {
+    ASSERT_LE(off + 16, bytes.size()) << "write_pcap left a partial record header";
     const std::size_t incl = load_le32(bytes, off + 8);
     for (const std::size_t word : {0u, 4u, 8u, 12u}) swap_word(off + word);
     off += 16 + incl;
