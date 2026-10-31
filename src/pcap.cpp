@@ -17,7 +17,7 @@ constexpr std::uint16_t kEtherVlan = 0x8100;
 constexpr std::uint8_t kProtoUdp = 17;
 
 std::uint32_t bswap32(std::uint32_t v) {
-  return (v >> 24) | ((v >> 8) & 0xff00u) | ((v << 8) & 0xff000u) | (v << 24);
+  return (v >> 24) | ((v >> 8) & 0xff00u) | ((v << 8) & 0xff0000u) | (v << 24);
 }
 
 class Reader {
