@@ -4,7 +4,7 @@
 # (the SDK repository's license), so they may be fetched by a script. The
 # larger Ouster sample drives are CC BY-NC-SA and are never committed here.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 SHA=46b7bceee7995914e2f3f3facf4d78418335b2d7
 BASE=https://raw.githubusercontent.com/ouster-lidar/ouster-sdk/$SHA/tests/pcaps
 mkdir -p data

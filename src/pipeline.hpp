@@ -69,4 +69,4 @@ struct Registrar {
 // they find nearest_,, never in what they do with it
 [[nodiscard]] Decision decide(float nearest_m, const Config& cfg);
 
-};  // namespace avl
+}  // namespace avl
