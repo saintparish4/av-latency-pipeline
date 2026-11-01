@@ -30,6 +30,9 @@ struct Point {
   bool ground;  // AoS: every stage drags every field through the cache
 };
 
+// kSelect = false is the baseline; true is ladder rung 1 ("nth"), which
+// replaces the full sort with std::nth_element (directive/p3.md, rung 1).
+template <bool kSelect>
 class NaivePipeline final : public Pipeline {
  public:
   NaivePipeline(const SensorInfo& info, const Config& cfg)
@@ -113,8 +116,16 @@ class NaivePipeline final : public Pipeline {
     if (points_.size() < 3) return std::nullopt;
     heights_.clear();
     for (const Point& p : points_) heights_.push_back(p.z);
-    std::sort(heights_.begin(), heights_.end());
     const std::size_t k = std::min(points_.size(), static_cast<std::size_t>(cfg_.gpf_lpr_count));
+    if constexpr (kSelect) {
+      // Only the k lowest are needed, not their order: O(n) instead of O(n log n).
+      // Summing 200 floats of similar magnitude in double is exact, so lpr does
+      // not depend on their order; equivalence_test.cpp checks that it holds.
+      std::nth_element(heights_.begin(), heights_.begin() + static_cast<std::ptrdiff_t>(k - 1),
+                       heights_.end());
+    } else {
+      std::sort(heights_.begin(), heights_.end());
+    }
     double lpr = 0;
     for (std::size_t i = 0; i < k; ++i) lpr += heights_[i];
     lpr /= static_cast<double>(k);
@@ -167,8 +178,11 @@ class NaivePipeline final : public Pipeline {
   Trace trace_;
 };
 
-const Registrar kRegister{
-    "naive", [](const SensorInfo& i, const Config& c) { return std::make_unique<NaivePipeline>(i, c); }};
+const Registrar kNaive{"naive", [](const SensorInfo& i, const Config& c) {
+                         return std::make_unique<NaivePipeline<false>>(i, c);
+                       }};
+const Registrar kNth{
+    "nth", [](const SensorInfo& i, const Config& c) { return std::make_unique<NaivePipeline<true>>(i, c); }};
 
 }  // namespace
 }  // namespace avl
