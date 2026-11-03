@@ -38,6 +38,19 @@ def main():
               f"double {other.get('fpc_double', float('nan')):.1f} FLOP/cycle\n")
     kernels = list(csv.DictReader(open(a.kernels)))
 
+    # Fail with a message, not a KeyError, on a truncated CSV or a wrong --level.
+    missing = [p for p in ("float", "double") if p not in peak]
+    if missing:
+        raise SystemExit(f"{a.probe}: no peak_gflops row for {', '.join(missing)}")
+    if a.level not in bw:
+        raise SystemExit(f"--level {a.level}: {a.probe} has bandwidth for {', '.join(bw) or 'no level'}")
+    need = {"kernel", "precision", "intensity", "gflops"}
+    if not kernels or not need <= kernels[0].keys():
+        raise SystemExit(f"{a.kernels}: needs columns {', '.join(sorted(need))}")
+    for k in kernels:
+        if k["precision"] not in peak:
+            raise SystemExit(f"{a.kernels}: kernel {k['kernel']} has unknown precision {k['precision']!r}")
+
     fig, ax = plt.subplots(figsize=(8, 5.5))
     ai = np.logspace(-2, 1.5, 200)
     for prec, style in (("float", "-"), ("double", "--")):
