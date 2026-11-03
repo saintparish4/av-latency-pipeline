@@ -1,0 +1,49 @@
+# Correctness only. Shared CI runners are virtualized and noisy, so nothing
+# here measures latency; the harness's own A/A and stall checks run on the
+# measurement machine (scripts/reproduce.sh).
+name: ci
+on: [push, pull_request]
+jobs:
+  static:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang-18 lld-18 clang-format-18 clang-tidy-18 shellcheck shfmt ninja-build
+      - run: scripts/format.sh --check
+      - name: lint (configure only; clang-tidy needs the compile database, not a build)
+        run: cmake --preset rel > /dev/null && scripts/lint.sh
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [rel, asan, tsan]
+    steps:
+      - uses: actions/checkout@v4
+      - name: toolchain
+        run: sudo apt-get update && sudo apt-get install -y clang-18 lld-18 llvm-18 libclang-rt-18-dev ninja-build
+      - name: data
+        run: scripts/fetch_data.sh
+      - name: build
+        run: cmake --preset ${{ matrix.preset }} && cmake --build --preset ${{ matrix.preset }}
+      - name: test
+        run: ctest --preset ${{ matrix.preset }}
+      - name: differential vs Ouster SDK and Open3D
+        if: matrix.preset == 'rel'
+        run: |
+          sudo apt-get install -y libgl1 libegl1 libgomp1 libusb-1.0-0
+          python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+          .venv/bin/python -I analysis/diff_reference.py --build build/rel --data data
+  fuzz:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang-18 lld-18 llvm-18 libclang-rt-18-dev ninja-build
+      - run: scripts/fetch_data.sh
+      - run: cmake --preset fuzz && cmake --build --preset fuzz
+      - run: scripts/fuzz.sh 120
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-crashes
+          path: build/fuzz/crashes/
