@@ -68,9 +68,23 @@ cat results/rt_check.txt
   python3 analysis/budget.py
 } > "$R"
 
+# setcap can succeed and still not take effect (a nosuid mount ignores file
+# capabilities). replay would then only label its runs "nofifo", and the
+# rt= lines are filtered out of the report below, so prove it took.
+grant_rt() {
+  sudo setcap cap_sys_nice,cap_ipc_lock+ep "$1"
+  local rt
+  rt=$("$1" --pcap "$CAP.pcap" --meta "$CAP.json" --impl spin --speed 0 --decisions 20 \
+    --cpu "$CPU" --fifo 80 | grep -o 'rt=[^ ]*')
+  if [ "$rt" != rt=mlock+pin+fifo ]; then
+    echo "reproduce: $1 got $rt after setcap; is the filesystem mounted nosuid?" >&2
+    exit 1
+  fi
+}
+
 step "privileges for SCHED_FIFO and mlock (one sudo prompt)"
 scripts/build_link_orders.sh 4
-for b in build/rel/bench/replay build/link-*/bench/replay; do sudo setcap cap_sys_nice,cap_ipc_lock+ep "$b"; done
+for b in build/rel/bench/replay build/link-*/bench/replay; do grant_rt "$b"; done
 
 step "OS jitter floor (cyclictest, 5 min)"
 sudo scripts/jitter_floor.sh "$CPU" 5m | tee -a "$R"
@@ -100,7 +114,7 @@ for v in build/v-*/bench/replay; do
   name=$(basename "$(dirname "$(dirname "$v")")")
   name=${name#v-}
   case "$name" in pgo-gen | afdo-src) continue ;; esac # profiling builds, not variants
-  sudo setcap cap_sys_nice,cap_ipc_lock+ep "$v"
+  grant_rt "$v"
   arms+=(--arm "$name|$v|--impl simd")
   names+=("$name")
 done
