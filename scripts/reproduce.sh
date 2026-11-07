@@ -110,6 +110,10 @@ step "compiler variants"
 IMPL=simd scripts/build_variants.sh
 arms=()
 names=()
+# No nullglob guard, on purpose: build_variants.sh always builds base,
+# thinlto and pgo or exits non-zero (set -e stops us above), so this glob
+# always matches. If it ever did not, grant_rt's setcap would fail loudly on
+# the literal path, which is the behavior we want.
 for v in build/v-*/bench/replay; do
   name=$(basename "$(dirname "$(dirname "$v")")")
   name=${name#v-}
