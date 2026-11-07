@@ -6,17 +6,40 @@
 //   usage: udp_tx PCAP META [--host 127.0.0.1] [--port 7502] [--speed 1] [--loops 100]
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <chrono>
+#include <cerrno>
+#include <cstdint>
 #include <cstring>
+#include <ctime>
 #include <iostream>
 #include <string>
 #include <vector>
 
 #include "pcap.hpp"
 #include "sensor.hpp"
+
+namespace {
+
+std::int64_t now_ns() {
+  timespec ts{};
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (static_cast<std::int64_t>(ts.tv_sec) * 1'000'000'000) + ts.tv_nsec;
+}
+
+// Sleeps, rather than spins, until an absolute CLOCK_MONOTONIC time. A
+// spinning sender holds a core for the whole run, on the same host as the
+// udp_rx it feeds. Restarts after a signal: the deadline is absolute.
+void sleep_until_ns(std::int64_t t) {
+  const timespec ts{.tv_sec = static_cast<time_t>(t / 1'000'000'000),
+                    .tv_nsec = static_cast<long>(t % 1'000'000'000)};
+  while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr) == EINTR) {
+  }
+}
+
+}  // namespace
 
 int main(int argc, char** argv) try {
   if (argc < 3) {
@@ -56,14 +79,15 @@ int main(int argc, char** argv) try {
   dst.sin_family = AF_INET;
   dst.sin_port = htons(static_cast<std::uint16_t>(port));
   if (inet_pton(AF_INET, host.c_str(), &dst.sin_addr) != 1) throw std::runtime_error("bad host " + host);
-  const auto t0 = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+  // The default 50 us timer slack would let every wake-up run late by up to
+  // that much; 1 ns keeps the schedule within the kernel's wake-up latency.
+  prctl(PR_SET_TIMERSLACK, 1UL);
+  const std::int64_t t0 = now_ns() + 100'000'000;
   for (long l = 0; l < loops; ++l) {
     for (const auto& d : pkts) {
       const auto off =
           static_cast<double>(l * loop_ns + static_cast<std::int64_t>(d.ts_ns - pkts.front().ts_ns));
-      const auto when = t0 + std::chrono::nanoseconds(static_cast<std::int64_t>(off / speed));
-      while (std::chrono::steady_clock::now() < when) {
-      }
+      sleep_until_ns(t0 + static_cast<std::int64_t>(off / speed));
       if (sendto(fd, d.payload.data(), d.payload.size(), 0, reinterpret_cast<const sockaddr*>(&dst),
                  sizeof dst) < 0) {
         throw std::runtime_error(std::string("sendto: ") + std::strerror(errno));
