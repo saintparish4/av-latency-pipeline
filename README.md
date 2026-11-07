@@ -31,6 +31,10 @@ cmake --preset tsan && cmake --build --preset tsan && ctest --preset tsan
 cmake --preset fuzz && cmake --build --preset fuzz && scripts/fuzz.sh 60
 ```
 
+`make help` lists shortcuts for these and the other scripts (`make test`,
+`make sanitize`, `make fuzz`, `make diff`, `make docker-check`,
+`make ladder`). Each one wraps a preset or a script in `scripts/`.
+
 CI runs all of these on every push, plus format and lint checks. It checks
 correctness only: shared runners are too noisy to measure latency.
 
